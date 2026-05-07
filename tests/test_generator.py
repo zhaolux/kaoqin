@@ -71,6 +71,28 @@ def test_resolve_input_file_auto_detects_data_file(tmp_path):
     assert resolved == str(workbook_path)
 
 
+def test_resolve_input_file_accepts_explicit_file_outside_data_dir(tmp_path):
+    other_dir = tmp_path / "imports"
+    other_dir.mkdir()
+    workbook_path = other_dir / "4月考勤.xlsx"
+    create_dingtalk_workbook(workbook_path)
+
+    resolved = resolve_input_file(str(workbook_path), None, base_dir=tmp_path)
+
+    assert resolved == str(workbook_path)
+
+
+def test_resolve_input_file_auto_detects_file_from_explicit_directory(tmp_path):
+    other_dir = tmp_path / "imports"
+    other_dir.mkdir()
+    workbook_path = other_dir / "4月考勤.xlsx"
+    create_dingtalk_workbook(workbook_path)
+
+    resolved = resolve_input_file(str(other_dir), None, base_dir=tmp_path)
+
+    assert resolved == str(workbook_path)
+
+
 def test_generate_attendance_creates_workbook_with_formulas_and_alias(tmp_path):
     data_dir = tmp_path / "data"
     data_dir.mkdir()

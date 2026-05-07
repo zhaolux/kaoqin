@@ -158,9 +158,9 @@ def resolve_path(path_str: str, base_dir: Path | None = None) -> Path:
     return root_dir / path
 
 
-def list_candidate_input_files(base_dir: Path | None = None) -> list[Path]:
-    """列出 data 目录下可作为钉钉考勤输入的候选文件。"""
-    current_dir = get_data_dir(base_dir=base_dir)
+def list_candidate_input_files(base_dir: Path | None = None, search_dir: Path | None = None) -> list[Path]:
+    """列出指定目录下可作为钉钉考勤输入的候选文件。"""
+    current_dir = search_dir or get_data_dir(base_dir=base_dir)
     if not current_dir.exists():
         return []
     files = []
@@ -213,9 +213,20 @@ def resolve_dingtalk_sheet(workbook, sheet_name: str | None = None) -> str:
 
 
 def resolve_input_file(input_file: str | None, dingtalk_sheet: str | None = None, base_dir: Path | None = None) -> str:
-    """确定输入文件路径，必要时从 data 目录自动探测。"""
+    """确定输入文件路径，必要时从 data 目录或指定目录自动探测。"""
     if input_file:
         resolved = resolve_path(input_file, base_dir=base_dir)
+        if resolved.is_dir():
+            for candidate in list_candidate_input_files(base_dir=base_dir, search_dir=resolved):
+                try:
+                    workbook = load_workbook(candidate, read_only=True, data_only=True)
+                    resolve_dingtalk_sheet(workbook, dingtalk_sheet)
+                    logger.info("Auto detected input file from directory %s: %s", resolved, candidate)
+                    return str(candidate)
+                except Exception as exc:
+                    logger.debug("Skip candidate file %s: %s", candidate, exc)
+                    continue
+            raise InputFileError(f"目录下找不到可用的钉钉月度汇总 Excel 文件：{resolved}")
         if not resolved.exists():
             raise InputFileError(f"输入文件不存在：{resolved}")
         return str(resolved)
