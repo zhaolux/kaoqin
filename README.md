@@ -23,7 +23,6 @@ pip install -e '.[dev]'
 默认运行：
 
 ```bash
-python3 generate_attendance.py
 python -m kaoqin
 kaoqin-generate
 ```
