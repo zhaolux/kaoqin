@@ -31,6 +31,7 @@ THIN = Side(style="thin", color="000000")
 HAIR = Side(style="hair", color="000000")
 DAY_FILL = PatternFill(fill_type="solid", fgColor="FF00B0F0")
 TYPE_FILL = PatternFill(fill_type="solid", fgColor="FFF2F2F2")
+MEAL_FILL = PatternFill(fill_type="solid", fgColor="FF92D050")
 
 
 @dataclass(frozen=True)
@@ -305,7 +306,8 @@ def build_sheet(runtime_config: RuntimeConfig, year: int, month: int):
     total_col = days_in_month + 3
     unit_col = total_col + 1
     category_col = total_col + 2
-    last_col = category_col
+    meal_col = total_col + 3
+    last_col = meal_col
     last_letter = get_column_letter(last_col)
 
     for row in (1, 2):
@@ -327,6 +329,7 @@ def build_sheet(runtime_config: RuntimeConfig, year: int, month: int):
     ws.column_dimensions[get_column_letter(total_col)].width = 8
     ws.column_dimensions[get_column_letter(unit_col)].width = 5.2
     ws.column_dimensions[get_column_letter(category_col)].width = 8.5
+    ws.column_dimensions[get_column_letter(meal_col)].width = 8.5
 
     ws.row_dimensions[1].height = 18
     ws.row_dimensions[2].height = 22.5
@@ -339,10 +342,11 @@ def build_sheet(runtime_config: RuntimeConfig, year: int, month: int):
     ws.cell(3, total_col).value = "合计"
     ws.cell(3, unit_col).value = "单位"
     ws.cell(3, category_col).value = "类型"
+    ws.cell(3, meal_col).value = "餐补"
 
     for col in range(1, last_col + 1):
         cell = ws.cell(3, col)
-        cell.font = TITLE_FONT if col in {total_col, unit_col, category_col} else FONT
+        cell.font = TITLE_FONT if col in {total_col, unit_col, category_col, meal_col} else FONT
         if col == 1:
             cell.font = FIRST_COLUMN_FONT
         cell.alignment = CENTER
@@ -389,6 +393,7 @@ def build_sheet(runtime_config: RuntimeConfig, year: int, month: int):
                 total_cell = ws.cell(current_row, total_col)
                 unit_cell = ws.cell(current_row, unit_col)
                 category_cell = ws.cell(current_row, category_col)
+                meal_cell = ws.cell(current_row, meal_col)
 
                 a_cell.border = make_border(left=THIN, right=HAIR, top=THIN if offset == 0 else HAIR, bottom=THIN if current_row == end_row else HAIR)
                 b_cell.value = att_type
@@ -412,16 +417,21 @@ def build_sheet(runtime_config: RuntimeConfig, year: int, month: int):
                 if att_type == "出勤 √":
                     total_cell.number_format = '0.00"天"'
 
-                unit_value, category_value = runtime_config.attendance_type_meta.get(att_type, ("", ""))
+                unit_value, _ = runtime_config.attendance_type_meta.get(att_type, ("", ""))
                 unit_cell.value = unit_value
                 unit_cell.font = FONT
                 unit_cell.alignment = CENTER
                 unit_cell.border = make_border(left=THIN, right=THIN, top=THIN if offset == 0 else HAIR, bottom=THIN if current_row == end_row else HAIR)
 
-                category_cell.value = category_value
+                category_cell.value = att_type
                 category_cell.font = FONT
                 category_cell.alignment = CENTER
+                category_cell.fill = TYPE_FILL
                 category_cell.border = make_border(left=THIN, right=THIN, top=THIN if offset == 0 else HAIR, bottom=THIN if current_row == end_row else HAIR)
+
+                meal_cell.font = FONT
+                meal_cell.alignment = CENTER
+                meal_cell.border = make_border(left=THIN, right=THIN, top=THIN if offset == 0 else HAIR, bottom=THIN if current_row == end_row else HAIR)
 
             row = end_row + 1
 
@@ -476,22 +486,21 @@ def update_total(runtime_config: RuntimeConfig, ws, row_index, days_in_month: in
     """为各考勤类型写入月度合计公式。"""
     start_letter = get_column_letter(3)
     end_letter = get_column_letter(days_in_month + 2)
+    total_letter = get_column_letter(total_col)
+    meal_col = total_col + 3
     for rows in row_index.values():
         for att_type, row in rows.items():
             total_cell = ws.cell(row, total_col)
+            meal_cell = ws.cell(row, meal_col)
             day_range = f"{start_letter}{row}:{end_letter}{row}"
             if att_type == "出勤 √":
-                # Attendance is reported in days, so all hour-based rows are folded in and divided by 8.
-                total_parts = [f"SUM({day_range})"]
-                for other_type, other_row in rows.items():
-                    if other_type == "出勤 √":
-                        continue
-                    unit_value, _ = runtime_config.attendance_type_meta.get(other_type, ("", ""))
-                    if unit_value == "小时":
-                        total_parts.append(f"SUM({start_letter}{other_row}:{end_letter}{other_row})")
-                total_cell.value = f"=({'+'.join(total_parts)})/8"
+                total_cell.value = f"=SUM({day_range})/8"
+                meal_cell.value = f"={total_letter}{row}*15"
+                meal_cell.fill = MEAL_FILL
             else:
                 total_cell.value = f"=SUM({day_range})"
+                meal_cell.value = None
+                meal_cell.fill = PatternFill(fill_type=None)
 
 
 def generate_attendance(
