@@ -44,6 +44,7 @@ class RuntimeConfig:
 
 
 def load_runtime_config(base_dir: Path | None = None) -> RuntimeConfig:
+    """加载并标准化运行时所需的全部配置。"""
     try:
         holiday_raw = load_json_config("holiday_calendars", base_dir=base_dir)
         attendance_layout_raw = load_json_config("attendance_layout", base_dir=base_dir)
@@ -88,6 +89,7 @@ def load_runtime_config(base_dir: Path | None = None) -> RuntimeConfig:
 
 
 def is_workday(runtime_config: RuntimeConfig, year: int, month: int, day: int) -> bool:
+    """根据节假日配置和周末规则判断某天是否为工作日。"""
     current_date = date(year, month, day)
     current_str = current_date.isoformat()
     holiday_calendar = runtime_config.holiday_calendars.get(str(year))
@@ -100,6 +102,7 @@ def is_workday(runtime_config: RuntimeConfig, year: int, month: int, day: int) -
 
 
 def parse_period_from_dingtalk(ws) -> tuple[int, int]:
+    """从钉钉月度汇总表头解析统计年月。"""
     title = str(ws.cell(1, 1).value or "")
     match = re.search(r"统计日期[:：]\s*(\d{4})-(\d{2})-\d{2}\s*至\s*(\d{4})-(\d{2})-\d{2}", title)
     if not match:
@@ -115,6 +118,7 @@ def parse_period_from_dingtalk(ws) -> tuple[int, int]:
 
 
 def get_target_period(reference_date: date | None = None) -> tuple[int, int]:
+    """返回默认要生成的统计月份，规则为参考日期的上一个自然月。"""
     current_date = reference_date or date.today()
     if current_date.month == 1:
         return current_date.year - 1, 12
@@ -122,10 +126,12 @@ def get_target_period(reference_date: date | None = None) -> tuple[int, int]:
 
 
 def get_output_file(year: int, month: int) -> str:
+    """按既定命名规则生成输出文件名。"""
     return f"邮政+电力（{month}月）_自动生成.xlsx"
 
 
 def parse_args():
+    """解析命令行参数。"""
     parser = argparse.ArgumentParser(description="根据钉钉月度汇总生成考勤汇总表")
     parser.add_argument("input_file", nargs="?", help="钉钉导出的月度汇总 Excel 文件；不传时自动扫描 data 目录")
     parser.add_argument("-s", "--sheet", help="钉钉工作表名称；不传时自动识别，优先使用月度汇总")
@@ -137,11 +143,13 @@ def parse_args():
 
 
 def get_data_dir(base_dir: Path | None = None) -> Path:
+    """返回数据目录路径。"""
     root_dir = base_dir or Path.cwd()
     return root_dir / DEFAULT_DATA_DIRNAME
 
 
 def resolve_path(path_str: str, base_dir: Path | None = None) -> Path:
+    """将相对路径解析为基于项目目录的绝对路径。"""
     path = Path(path_str)
     if path.is_absolute():
         return path
@@ -150,6 +158,7 @@ def resolve_path(path_str: str, base_dir: Path | None = None) -> Path:
 
 
 def list_candidate_input_files(base_dir: Path | None = None) -> list[Path]:
+    """列出 data 目录下可作为钉钉考勤输入的候选文件。"""
     current_dir = get_data_dir(base_dir=base_dir)
     if not current_dir.exists():
         return []
@@ -170,6 +179,7 @@ def list_candidate_input_files(base_dir: Path | None = None) -> list[Path]:
 
 
 def is_dingtalk_sheet(ws) -> bool:
+    """根据标题和表头特征判断工作表是否为钉钉月度汇总。"""
     # DingTalk exports are identified from a small set of stable header cells.
     title = str(ws.cell(1, 1).value or "")
     header_a3 = str(ws.cell(3, 1).value or "").strip()
@@ -182,6 +192,7 @@ def is_dingtalk_sheet(ws) -> bool:
 
 
 def resolve_dingtalk_sheet(workbook, sheet_name: str | None = None) -> str:
+    """解析并返回钉钉月度汇总所在的工作表名称。"""
     if sheet_name:
         if sheet_name not in workbook.sheetnames:
             raise SheetDetectionError(f"找不到工作表：{sheet_name}")
@@ -201,6 +212,7 @@ def resolve_dingtalk_sheet(workbook, sheet_name: str | None = None) -> str:
 
 
 def resolve_input_file(input_file: str | None, dingtalk_sheet: str | None = None, base_dir: Path | None = None) -> str:
+    """确定输入文件路径，必要时从 data 目录自动探测。"""
     if input_file:
         resolved = resolve_path(input_file, base_dir=base_dir)
         if not resolved.exists():
@@ -221,6 +233,7 @@ def resolve_input_file(input_file: str | None, dingtalk_sheet: str | None = None
 
 
 def get_day_columns_from_dingtalk(ws) -> dict[int, int]:
+    """读取钉钉工作表中的日期列映射。"""
     day_cols = {}
     for col in range(2, ws.max_column + 1):
         value = ws.cell(4, col).value
@@ -239,6 +252,7 @@ def get_day_columns_from_dingtalk(ws) -> dict[int, int]:
 
 
 def parse_status(text) -> str:
+    """将钉钉单元格文本归一化为内部考勤状态。"""
     if text is None:
         return "空"
     text = str(text)
@@ -267,16 +281,19 @@ def parse_status(text) -> str:
 
 
 def make_border(left=THIN, right=THIN, top=THIN, bottom=THIN):
+    """按传入边线样式构造单元格边框。"""
     return Border(left=left, right=right, top=top, bottom=bottom)
 
 
 def get_day_fill(runtime_config: RuntimeConfig, year: int, month: int, day: int):
+    """返回指定日期表头或单元格应使用的背景色。"""
     if is_workday(runtime_config, year, month, day):
         return None
     return DAY_FILL
 
 
 def build_sheet(runtime_config: RuntimeConfig, year: int, month: int):
+    """创建考勤汇总工作簿并初始化表结构。"""
     workbook = Workbook()
     ws = workbook.active
     ws.title = "考勤（一）"
@@ -412,6 +429,7 @@ def build_sheet(runtime_config: RuntimeConfig, year: int, month: int):
 
 
 def fill_auto_workdays(runtime_config: RuntimeConfig, ws, row_index, year: int, month: int):
+    """为约定的固定出勤人员预填工作日出勤时长。"""
     days = calendar.monthrange(year, month)[1]
     for name in runtime_config.auto_workday_people:
         work_row = row_index.get(name, {}).get("出勤 √")
@@ -424,6 +442,7 @@ def fill_auto_workdays(runtime_config: RuntimeConfig, ws, row_index, year: int, 
 
 
 def write_status(runtime_config: RuntimeConfig, ws, row_index, name: str, day: int, status: str):
+    """将单日考勤状态写入目标汇总表的对应行列。"""
     if name not in row_index:
         logger.warning("布局中找不到人员：%s", name)
         return
@@ -450,6 +469,7 @@ def write_status(runtime_config: RuntimeConfig, ws, row_index, name: str, day: i
 
 
 def update_total(runtime_config: RuntimeConfig, ws, row_index, days_in_month: int, total_col: int):
+    """为各考勤类型写入月度合计公式。"""
     start_letter = get_column_letter(3)
     end_letter = get_column_letter(days_in_month + 2)
     for rows in row_index.values():
@@ -477,6 +497,7 @@ def generate_attendance(
     config_dir: str | None = None,
     reference_date: date | None = None,
 ):
+    """读取钉钉月报并生成目标考勤汇总文件。"""
     base_dir = Path(config_dir).resolve() if config_dir else Path.cwd()
     try:
         runtime_config = load_runtime_config(base_dir=base_dir)
@@ -535,6 +556,7 @@ def generate_attendance(
 
 
 def main():
+    """命令行入口，负责初始化日志并执行生成流程。"""
     args = parse_args()
     base_dir = Path(args.config_dir).resolve() if args.config_dir else Path.cwd()
     log_path = setup_logging(base_dir=base_dir, level=args.log_level, log_file=args.log_file)
