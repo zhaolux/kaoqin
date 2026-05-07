@@ -18,6 +18,12 @@ pip install -e .
 pip install -e '.[dev]'
 ```
 
+安装 Windows 打包依赖：
+
+```bash
+pip install -e '.[build]'
+```
+
 ## 运行方式
 
 默认运行：
@@ -143,6 +149,33 @@ pip install -r requirements.txt
 ```bash
 python -m pytest -q
 ```
+
+## Windows 可执行程序打包
+
+Windows 下推荐直接使用 PyInstaller 打包：
+
+```bat
+scripts\build_windows.bat
+```
+
+打包完成后生成：
+
+```text
+dist\kaoqin\kaoqin.exe
+```
+
+如果不想用批处理，也可以手动执行：
+
+```bash
+python -m pip install -e '.[build]'
+pyinstaller --clean --noconfirm kaoqin.spec
+```
+
+仓库同时提供了 Windows 构建工作流：
+
+- `.github/workflows/windows-exe.yml`
+- 可在 GitHub Actions 里手动触发 `Windows EXE`
+- 或在推送 `v*` tag 时自动构建并上传 artifact
 
 仓库已包含 GitHub Actions 工作流：
 
