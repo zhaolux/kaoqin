@@ -287,17 +287,17 @@ def build_sheet(runtime_config: RuntimeConfig, year: int, month: int):
     ws["A1"].border = make_border(right=THIN, bottom=THIN)
     ws["A2"].border = make_border()
 
-    ws.column_dimensions["A"].width = 9.33
-    ws.column_dimensions["B"].width = 8.67
+    ws.column_dimensions["A"].width = 10
+    ws.column_dimensions["B"].width = 9.5
     for col in range(3, total_col):
-        ws.column_dimensions[get_column_letter(col)].width = 3.67
-    ws.column_dimensions[get_column_letter(total_col)].width = 7
-    ws.column_dimensions[get_column_letter(unit_col)].width = 4.56
-    ws.column_dimensions[get_column_letter(category_col)].width = 7.78
+        ws.column_dimensions[get_column_letter(col)].width = 4.2
+    ws.column_dimensions[get_column_letter(total_col)].width = 8
+    ws.column_dimensions[get_column_letter(unit_col)].width = 5.2
+    ws.column_dimensions[get_column_letter(category_col)].width = 8.5
 
     ws.row_dimensions[1].height = 18
     ws.row_dimensions[2].height = 22.5
-    ws.row_dimensions[3].height = 22.05
+    ws.row_dimensions[3].height = 24
 
     ws.cell(3, 1).value = "姓  名"
     ws.cell(3, 2).value = 0
