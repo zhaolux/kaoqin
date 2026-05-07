@@ -85,6 +85,11 @@ def test_generate_attendance_creates_workbook_with_formulas_and_alias(tmp_path):
     workbook = load_workbook(output_path, data_only=False)
     ws = workbook["考勤（一）"]
     assert ws["A1"].value == "2026年3月份考勤汇总统计表"
+    assert "A4:AJ4" in {str(merged_range) for merged_range in ws.merged_cells.ranges}
+    assert ws["A1"].border.left.style == "thin"
+    assert ws["AJ1"].border.right.style == "thin"
+    assert ws["A2"].border.left.style == "thin"
+    assert ws["AJ2"].border.right.style == "thin"
     row_index = build_row_index(ws)
 
     liuxiao_work_row = row_index["刘晓"]["出勤 √"]
@@ -92,6 +97,8 @@ def test_generate_attendance_creates_workbook_with_formulas_and_alias(tmp_path):
     yuanchen_work_row = row_index["袁辰"]["出勤 √"]
     yuanchen_personal_row = row_index["袁辰"]["事假 △"]
 
+    assert "加班（+）" not in row_index["刘晓"]
+    assert "加班（+）" not in row_index["袁辰"]
     assert ws.cell(liuxiao_work_row, 34).value.startswith("=(")
     assert ws.cell(liuxiao_sick_row, 5).value == 8
     assert ws.cell(yuanchen_work_row, 34).value.startswith("=(")

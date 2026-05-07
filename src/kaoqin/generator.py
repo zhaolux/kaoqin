@@ -308,6 +308,9 @@ def build_sheet(runtime_config: RuntimeConfig, year: int, month: int):
     last_col = category_col
     last_letter = get_column_letter(last_col)
 
+    for row in (1, 2):
+        for col in range(1, last_col + 1):
+            ws.cell(row, col).border = make_border()
     ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=last_col)
     ws.merge_cells(start_row=2, start_column=1, end_row=2, end_column=last_col)
     ws["A1"] = f"{year}年{month}月份考勤汇总统计表"
@@ -316,8 +319,6 @@ def build_sheet(runtime_config: RuntimeConfig, year: int, month: int):
     ws["A2"].font = HEADER_FONT
     ws["A1"].alignment = CENTER
     ws["A2"].alignment = LEFT
-    ws["A1"].border = make_border()
-    ws["A2"].border = make_border()
 
     ws.column_dimensions["A"].width = 10
     ws.column_dimensions["B"].width = 9.5
@@ -356,19 +357,18 @@ def build_sheet(runtime_config: RuntimeConfig, year: int, month: int):
     row_index = {}
     for department, employees in runtime_config.department_layout:
         # Each department gets a header row, followed by a variable-height block per person.
-        ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=2)
+        for col in range(1, last_col + 1):
+            cell = ws.cell(row, col)
+            cell.border = make_border()
+            if 3 <= col < total_col:
+                fill = get_day_fill(runtime_config, year, month, col - 2)
+                if fill:
+                    cell.fill = fill
+        ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=last_col)
         dept_cell = ws.cell(row, 1)
         dept_cell.value = department
         dept_cell.font = FIRST_COLUMN_FONT
         dept_cell.alignment = LEFT
-        dept_cell.border = make_border()
-        for col in range(3, last_col + 1):
-            cell = ws.cell(row, col)
-            cell.border = make_border()
-            if col < total_col:
-                fill = get_day_fill(runtime_config, year, month, col - 2)
-                if fill:
-                    cell.fill = fill
         row += 1
 
         for name, att_types in employees:
