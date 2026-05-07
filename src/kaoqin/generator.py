@@ -297,7 +297,7 @@ def build_sheet(runtime_config: RuntimeConfig, year: int, month: int):
 
     ws.row_dimensions[1].height = 18
     ws.row_dimensions[2].height = 22.5
-    ws.row_dimensions[3].height = 24
+    ws.row_dimensions[3].height = 23
 
     ws.cell(3, 1).value = "姓  名"
     ws.cell(3, 2).value = 0
