@@ -6,6 +6,7 @@ from openpyxl import Workbook, load_workbook
 from kaoqin.generator import (
     DEFAULT_DINGTALK_SHEET,
     generate_attendance,
+    get_day_columns_from_dingtalk,
     is_dingtalk_sheet,
     resolve_dingtalk_sheet,
     resolve_input_file,
@@ -95,3 +96,35 @@ def test_generate_attendance_creates_workbook_with_formulas_and_alias(tmp_path):
     assert ws.cell(liuxiao_sick_row, 5).value == 8
     assert ws.cell(yuanchen_work_row, 34).value.startswith("=(")
     assert ws.cell(yuanchen_personal_row, 5).value == 8
+
+
+def test_get_day_columns_from_dingtalk_handles_weekend_headers_without_overwriting_day_one():
+    workbook = Workbook()
+    ws = workbook.active
+    ws["B4"] = "1"
+    ws["C4"] = "2"
+    ws["D4"] = "3"
+    ws["E4"] = "六"
+    ws["F4"] = "日"
+    ws["G4"] = "6"
+
+    day_cols = get_day_columns_from_dingtalk(ws)
+
+    assert day_cols[1] == 2
+    assert day_cols[2] == 3
+    assert day_cols[3] == 4
+    assert day_cols[6] == 7
+
+
+def test_get_day_columns_from_dingtalk_supports_legacy_first_day_header():
+    workbook = Workbook()
+    ws = workbook.active
+    ws["B4"] = "日"
+    ws["C4"] = "2"
+    ws["D4"] = "3"
+
+    day_cols = get_day_columns_from_dingtalk(ws)
+
+    assert day_cols[1] == 2
+    assert day_cols[2] == 3
+    assert day_cols[3] == 4

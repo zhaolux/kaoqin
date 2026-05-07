@@ -235,19 +235,23 @@ def resolve_input_file(input_file: str | None, dingtalk_sheet: str | None = None
 def get_day_columns_from_dingtalk(ws) -> dict[int, int]:
     """读取钉钉工作表中的日期列映射。"""
     day_cols = {}
+    first_header_col = None
+    first_header_value = None
     for col in range(2, ws.max_column + 1):
         value = ws.cell(4, col).value
         if value is None:
             continue
         value = str(value).strip()
-        if value == "日":
-            day = 1
-        elif value.isdigit():
+        if first_header_col is None:
+            first_header_col = col
+            first_header_value = value
+        if value.isdigit():
             day = int(value)
-        else:
-            continue
-        if 1 <= day <= 31:
-            day_cols[day] = col
+            if 1 <= day <= 31:
+                day_cols[day] = col
+    # Older DingTalk exports use "日" in the first date column to represent day 1.
+    if 1 not in day_cols and first_header_col is not None and first_header_value == "日":
+        day_cols[1] = first_header_col
     return day_cols
 
 
