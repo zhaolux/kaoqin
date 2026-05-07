@@ -22,7 +22,7 @@ DEFAULT_DATA_DIRNAME = "data"
 logger = logging.getLogger(__name__)
 
 FONT = Font(name="宋体", size=9)
-TITLE_FONT = Font(name="宋体", size=9, bold=True)
+TITLE_FONT = Font(name="黑体", size=10, bold=True)
 HEADER_FONT = Font(name="黑体", size=9, bold=True)
 FIRST_COLUMN_FONT = Font(name="黑体", size=9, bold=True)
 CENTER = Alignment(horizontal="center", vertical="center", wrap_text=True)
