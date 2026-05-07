@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 
 FONT = Font(name="宋体", size=9)
 TITLE_FONT = Font(name="宋体", size=9, bold=True)
+HEADER_FONT = Font(name="黑体", size=9, bold=True)
 FIRST_COLUMN_FONT = Font(name="黑体", size=9, bold=True)
 CENTER = Alignment(horizontal="center", vertical="center", wrap_text=True)
 LEFT = Alignment(horizontal="left", vertical="center", wrap_text=True)
@@ -281,11 +282,11 @@ def build_sheet(runtime_config: RuntimeConfig, year: int, month: int):
     ws.merge_cells(start_row=2, start_column=1, end_row=2, end_column=last_col)
     ws["A1"] = f"{year}年{month}月份考勤汇总统计表"
     ws["A2"] = "注:带*号黄色阴影为新入职人员;灰色阴影部分为离职人员"
-    ws["A1"].font = TITLE_FONT
-    ws["A2"].font = FONT
+    ws["A1"].font = HEADER_FONT
+    ws["A2"].font = HEADER_FONT
     ws["A1"].alignment = CENTER
     ws["A2"].alignment = LEFT
-    ws["A1"].border = make_border(right=THIN, bottom=THIN)
+    ws["A1"].border = make_border()
     ws["A2"].border = make_border()
 
     ws.column_dimensions["A"].width = 10
