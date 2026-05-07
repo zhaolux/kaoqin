@@ -12,6 +12,12 @@
 pip install -e .
 ```
 
+安装开发依赖：
+
+```bash
+pip install -e '.[dev]'
+```
+
 ## 运行方式
 
 默认运行：
@@ -122,3 +128,18 @@ kaoqin-generate --log-level DEBUG --log-file logs/custom.log
 ```bash
 pip install -r requirements.txt
 ```
+
+## 测试
+
+运行全部测试：
+
+```bash
+python -m pytest -q
+```
+
+仓库已包含 GitHub Actions 工作流：
+
+- push 到 `main`
+- 发起 Pull Request
+
+都会自动执行测试。

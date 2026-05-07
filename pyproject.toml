@@ -12,6 +12,11 @@ dependencies = [
   "openpyxl>=3.1,<4"
 ]
 
+[project.optional-dependencies]
+dev = [
+  "pytest>=8,<9"
+]
+
 [project.scripts]
 kaoqin-generate = "kaoqin.generator:main"
 
@@ -23,3 +28,6 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 kaoqin = ["resources/*.json"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
