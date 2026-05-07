@@ -8,6 +8,6 @@ __pycache__/
 dist/
 build/
 *.egg-info/
+logs/
 
-*_自动生成.xlsx
-*.xlsx
+data/*.xlsx

@@ -22,20 +22,22 @@ python -m kaoqin
 kaoqin-generate
 ```
 
-不传输入文件时，脚本会自动扫描当前目录下的 `.xlsx` 文件，优先选择文件名包含 `考勤` 且不包含 `自动生成` 的文件。
+Excel 源文件和生成文件统一放在 `data/` 目录下。
+
+不传输入文件时，脚本会自动扫描 `data/` 目录下的 `.xlsx` 文件，优先选择文件名包含 `考勤` 且不包含 `自动生成` 的文件。
 
 不传 `-s/--sheet` 时，脚本会优先使用 `月度汇总`，找不到时再自动识别符合钉钉月度汇总格式的工作表。
 
 指定输入文件：
 
 ```bash
-python -m kaoqin '3月考勤电力，邮政.xlsx'
+python -m kaoqin 'data/3月考勤电力，邮政.xlsx'
 ```
 
 指定工作表和输出文件：
 
 ```bash
-kaoqin-generate '3月考勤电力，邮政.xlsx' -s '月度汇总' -o '3月考勤结果.xlsx'
+kaoqin-generate 'data/3月考勤电力，邮政.xlsx' -s '月度汇总' -o 'data/3月考勤结果.xlsx'
 ```
 
 指定配置目录：
@@ -44,9 +46,30 @@ kaoqin-generate '3月考勤电力，邮政.xlsx' -s '月度汇总' -o '3月考�
 kaoqin-generate --config-dir ./my-config
 ```
 
+指定日志级别和日志文件：
+
+```bash
+kaoqin-generate --log-level DEBUG --log-file logs/custom.log
+```
+
 ## 配置文件
 
 脚本读取配置时，优先使用当前目录或 `--config-dir` 指定目录下的 JSON；如果找不到，再回退到包内默认配置。
+
+## 数据目录
+
+`data/` 目录用于存放：
+
+- 钉钉导出的 Excel 源文件
+- 脚本自动生成的汇总 Excel 文件
+
+## 日志与异常
+
+- 默认日志文件：`logs/kaoqin.log`
+- 默认同时输出到控制台和日志文件
+- 可通过 `--log-level` 调整日志级别
+- 可通过 `--log-file` 指定日志文件路径
+- 输入文件缺失、工作表识别失败、配置格式错误、生成失败等情况会返回明确错误信息并写入日志
 
 ### `holiday_calendars.json`
 

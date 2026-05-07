@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import calendar
+import logging
 import re
 from dataclasses import dataclass
 from datetime import date
@@ -12,9 +13,13 @@ from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
 from .config import load_json_config
+from .exceptions import ConfigError, GenerationError, InputFileError, KaoqinError, SheetDetectionError
+from .logging_utils import setup_logging
 
 
 DEFAULT_DINGTALK_SHEET = "月度汇总"
+DEFAULT_DATA_DIRNAME = "data"
+logger = logging.getLogger(__name__)
 
 FONT = Font(name="宋体", size=9)
 TITLE_FONT = Font(name="宋体", size=9, bold=True)
@@ -37,10 +42,15 @@ class RuntimeConfig:
 
 
 def load_runtime_config(base_dir: Path | None = None) -> RuntimeConfig:
-    holiday_raw = load_json_config("holiday_calendars", base_dir=base_dir)
-    attendance_layout_raw = load_json_config("attendance_layout", base_dir=base_dir)
-    attendance_config_raw = load_json_config("attendance_config", base_dir=base_dir)
-    attendance_rules_raw = load_json_config("attendance_rules", base_dir=base_dir)
+    try:
+        holiday_raw = load_json_config("holiday_calendars", base_dir=base_dir)
+        attendance_layout_raw = load_json_config("attendance_layout", base_dir=base_dir)
+        attendance_config_raw = load_json_config("attendance_config", base_dir=base_dir)
+        attendance_rules_raw = load_json_config("attendance_rules", base_dir=base_dir)
+    except ConfigError:
+        raise
+    except Exception as exc:
+        raise ConfigError("加载项目配置失败") from exc
 
     holiday_calendars = {
         str(year): {
@@ -108,15 +118,32 @@ def get_output_file(year: int, month: int) -> str:
 
 def parse_args():
     parser = argparse.ArgumentParser(description="根据钉钉月度汇总生成考勤汇总表")
-    parser.add_argument("input_file", nargs="?", help="钉钉导出的月度汇总 Excel 文件；不传时自动扫描当前目录")
+    parser.add_argument("input_file", nargs="?", help="钉钉导出的月度汇总 Excel 文件；不传时自动扫描 data 目录")
     parser.add_argument("-s", "--sheet", help="钉钉工作表名称；不传时自动识别，优先使用月度汇总")
-    parser.add_argument("-o", "--output", help="输出文件名；不传时按月份自动生成")
+    parser.add_argument("-o", "--output", help="输出文件名；不传时按月份自动生成到 data 目录")
     parser.add_argument("--config-dir", help="配置文件目录；不传时优先读取当前目录下的 JSON")
+    parser.add_argument("--log-level", default="INFO", help="日志级别，默认 INFO")
+    parser.add_argument("--log-file", help="日志文件路径；不传时默认写入 logs/kaoqin.log")
     return parser.parse_args()
 
 
+def get_data_dir(base_dir: Path | None = None) -> Path:
+    root_dir = base_dir or Path.cwd()
+    return root_dir / DEFAULT_DATA_DIRNAME
+
+
+def resolve_path(path_str: str, base_dir: Path | None = None) -> Path:
+    path = Path(path_str)
+    if path.is_absolute():
+        return path
+    root_dir = base_dir or Path.cwd()
+    return root_dir / path
+
+
 def list_candidate_input_files(base_dir: Path | None = None) -> list[Path]:
-    current_dir = base_dir or Path.cwd()
+    current_dir = get_data_dir(base_dir=base_dir)
+    if not current_dir.exists():
+        return []
     files = []
     for path in current_dir.glob("*.xlsx"):
         if path.name.startswith("~$"):
@@ -146,7 +173,7 @@ def is_dingtalk_sheet(ws) -> bool:
 def resolve_dingtalk_sheet(workbook, sheet_name: str | None = None) -> str:
     if sheet_name:
         if sheet_name not in workbook.sheetnames:
-            raise ValueError(f"找不到工作表：{sheet_name}")
+            raise SheetDetectionError(f"找不到工作表：{sheet_name}")
         return sheet_name
 
     if DEFAULT_DINGTALK_SHEET in workbook.sheetnames:
@@ -159,22 +186,27 @@ def resolve_dingtalk_sheet(workbook, sheet_name: str | None = None) -> str:
         if is_dingtalk_sheet(ws):
             return candidate_name
 
-    raise ValueError("无法自动识别钉钉月度汇总工作表，请通过 -s/--sheet 指定")
+    raise SheetDetectionError("无法自动识别钉钉月度汇总工作表，请通过 -s/--sheet 指定")
 
 
 def resolve_input_file(input_file: str | None, dingtalk_sheet: str | None = None, base_dir: Path | None = None) -> str:
     if input_file:
-        return input_file
+        resolved = resolve_path(input_file, base_dir=base_dir)
+        if not resolved.exists():
+            raise InputFileError(f"输入文件不存在：{resolved}")
+        return str(resolved)
 
     for candidate in list_candidate_input_files(base_dir=base_dir):
         try:
             workbook = load_workbook(candidate, read_only=True, data_only=True)
             resolve_dingtalk_sheet(workbook, dingtalk_sheet)
+            logger.info("Auto detected input file: %s", candidate)
             return str(candidate)
-        except Exception:
+        except Exception as exc:
+            logger.debug("Skip candidate file %s: %s", candidate, exc)
             continue
 
-    raise FileNotFoundError("当前目录下找不到可用的钉钉月度汇总 Excel 文件，请显式传入 input_file")
+    raise InputFileError("data 目录下找不到可用的钉钉月度汇总 Excel 文件，请显式传入 input_file")
 
 
 def get_day_columns_from_dingtalk(ws) -> dict[int, int]:
@@ -370,7 +402,7 @@ def fill_auto_workdays(runtime_config: RuntimeConfig, ws, row_index, year: int, 
     for name in runtime_config.auto_workday_people:
         work_row = row_index.get(name, {}).get("出勤 √")
         if not work_row:
-            print(f"布局中找不到 {name} 的 出勤 行")
+            logger.warning("布局中找不到 %s 的 出勤 行", name)
             continue
         for day in range(1, days + 1):
             if is_workday(runtime_config, year, month, day):
@@ -379,7 +411,7 @@ def fill_auto_workdays(runtime_config: RuntimeConfig, ws, row_index, year: int, 
 
 def write_status(runtime_config: RuntimeConfig, ws, row_index, name: str, day: int, status: str):
     if name not in row_index:
-        print(f"布局中找不到人员：{name}")
+        logger.warning("布局中找不到人员：%s", name)
         return
     if name in runtime_config.auto_workday_people and status == "正常":
         return
@@ -393,7 +425,7 @@ def write_status(runtime_config: RuntimeConfig, ws, row_index, name: str, day: i
 
     mapping = runtime_config.status_to_type.get(status)
     if not mapping:
-        print(f"未知状态：{name} {day}日 {status}")
+        logger.warning("未知状态：%s %s日 %s", name, day, status)
         return
     for idx in range(0, len(mapping), 2):
         att_type = mapping[idx]
@@ -425,43 +457,70 @@ def update_total(runtime_config: RuntimeConfig, ws, row_index, days_in_month: in
 
 def generate_attendance(input_file: str | None = None, dingtalk_sheet: str | None = None, output_file: str | None = None, config_dir: str | None = None):
     base_dir = Path(config_dir).resolve() if config_dir else Path.cwd()
-    runtime_config = load_runtime_config(base_dir=base_dir)
-    input_file = resolve_input_file(input_file, dingtalk_sheet, base_dir=base_dir)
+    try:
+        runtime_config = load_runtime_config(base_dir=base_dir)
+        input_file = resolve_input_file(input_file, dingtalk_sheet, base_dir=base_dir)
+        logger.info("Use input file: %s", input_file)
 
-    ding_wb = load_workbook(input_file, data_only=True)
-    resolved_sheet = resolve_dingtalk_sheet(ding_wb, dingtalk_sheet)
-    ding_ws = ding_wb[resolved_sheet]
+        ding_wb = load_workbook(input_file, data_only=True)
+        resolved_sheet = resolve_dingtalk_sheet(ding_wb, dingtalk_sheet)
+        ding_ws = ding_wb[resolved_sheet]
+        logger.info("Use worksheet: %s", resolved_sheet)
 
-    year, month = parse_period_from_dingtalk(ding_ws)
-    days_in_month = calendar.monthrange(year, month)[1]
-    if output_file is None:
-        output_file = get_output_file(year, month)
+        year, month = parse_period_from_dingtalk(ding_ws)
+        days_in_month = calendar.monthrange(year, month)[1]
+        logger.info("Detected period: %s-%02d", year, month)
 
-    workbook, ws, row_index, total_col = build_sheet(runtime_config, year, month)
-    fill_auto_workdays(runtime_config, ws, row_index, year, month)
-    day_cols = get_day_columns_from_dingtalk(ding_ws)
+        if output_file is None:
+            data_dir = get_data_dir(base_dir=base_dir)
+            data_dir.mkdir(parents=True, exist_ok=True)
+            output_file = str(data_dir / get_output_file(year, month))
+        else:
+            output_file = str(resolve_path(output_file, base_dir=base_dir))
+        logger.info("Output file: %s", output_file)
 
-    for row in range(5, ding_ws.max_row + 1):
-        raw_name = ding_ws.cell(row, 1).value
-        if raw_name is None:
-            continue
-        name = runtime_config.name_alias.get(str(raw_name).strip(), str(raw_name).strip())
-        for day, ding_col in day_cols.items():
-            if day > days_in_month:
+        workbook, ws, row_index, total_col = build_sheet(runtime_config, year, month)
+        fill_auto_workdays(runtime_config, ws, row_index, year, month)
+        day_cols = get_day_columns_from_dingtalk(ding_ws)
+
+        for row in range(5, ding_ws.max_row + 1):
+            raw_name = ding_ws.cell(row, 1).value
+            if raw_name is None:
                 continue
-            status = parse_status(ding_ws.cell(row, ding_col).value)
-            write_status(runtime_config, ws, row_index, name, day, status)
+            name = runtime_config.name_alias.get(str(raw_name).strip(), str(raw_name).strip())
+            for day, ding_col in day_cols.items():
+                if day > days_in_month:
+                    continue
+                status = parse_status(ding_ws.cell(row, ding_col).value)
+                write_status(runtime_config, ws, row_index, name, day, status)
 
-    update_total(runtime_config, ws, row_index, days_in_month, total_col)
-    workbook.save(output_file)
-    print(f"已生成：{output_file}")
+        update_total(runtime_config, ws, row_index, days_in_month, total_col)
+        workbook.save(output_file)
+        logger.info("Attendance workbook generated successfully: %s", output_file)
+        print(f"已生成：{output_file}")
+    except KaoqinError:
+        raise
+    except Exception as exc:
+        raise GenerationError("生成考勤汇总文件失败") from exc
 
 
 def main():
     args = parse_args()
-    generate_attendance(
-        input_file=args.input_file,
-        dingtalk_sheet=args.sheet,
-        output_file=args.output,
-        config_dir=args.config_dir,
-    )
+    base_dir = Path(args.config_dir).resolve() if args.config_dir else Path.cwd()
+    log_path = setup_logging(base_dir=base_dir, level=args.log_level, log_file=args.log_file)
+    logger.info("Logging to: %s", log_path)
+    try:
+        generate_attendance(
+            input_file=args.input_file,
+            dingtalk_sheet=args.sheet,
+            output_file=args.output,
+            config_dir=args.config_dir,
+        )
+    except KaoqinError as exc:
+        logger.exception("Kaoqin failed: %s", exc)
+        print(f"错误：{exc}")
+        raise SystemExit(1) from exc
+    except Exception as exc:
+        logger.exception("Unexpected error")
+        print(f"未预期错误：{exc}")
+        raise SystemExit(1) from exc
