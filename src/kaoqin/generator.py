@@ -155,6 +155,7 @@ def list_candidate_input_files(base_dir: Path | None = None) -> list[Path]:
         files.append(path)
 
     def sort_key(path: Path):
+        # Prefer likely DingTalk source files over unrelated workbooks.
         preferred = 0 if "考勤" in path.stem else 1
         return (preferred, -path.stat().st_mtime, path.name)
 
@@ -162,6 +163,7 @@ def list_candidate_input_files(base_dir: Path | None = None) -> list[Path]:
 
 
 def is_dingtalk_sheet(ws) -> bool:
+    # DingTalk exports are identified from a small set of stable header cells.
     title = str(ws.cell(1, 1).value or "")
     header_a3 = str(ws.cell(3, 1).value or "").strip()
     header_b3 = str(ws.cell(3, 2).value or "").strip()
@@ -325,6 +327,7 @@ def build_sheet(runtime_config: RuntimeConfig, year: int, month: int):
     row = 4
     row_index = {}
     for department, employees in runtime_config.department_layout:
+        # Each department gets a header row, followed by a variable-height block per person.
         ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=2)
         dept_cell = ws.cell(row, 1)
         dept_cell.value = department
@@ -447,6 +450,7 @@ def update_total(runtime_config: RuntimeConfig, ws, row_index, days_in_month: in
             total_cell = ws.cell(row, total_col)
             day_range = f"{start_letter}{row}:{end_letter}{row}"
             if att_type == "出勤 √":
+                # Attendance is reported in days, so all hour-based rows are folded in and divided by 8.
                 total_parts = [f"SUM({day_range})"]
                 for other_type, other_row in rows.items():
                     if other_type == "出勤 √":

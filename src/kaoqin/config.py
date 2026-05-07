@@ -31,6 +31,7 @@ def load_json_config(name: str, base_dir: Path | None = None) -> Any:
     logger = logging.getLogger(__name__)
     filename = CONFIG_FILES[name]
     override_path = _project_override_path(filename, base_dir)
+    # Allow a project-local override without changing the packaged defaults.
     if override_path.exists():
         try:
             with override_path.open("r", encoding="utf-8") as file:
