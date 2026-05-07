@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kaoqin"
+version = "0.1.0"
+description = "Generate attendance summary workbooks from DingTalk monthly exports."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "openpyxl>=3.1,<4"
+]
+
+[project.scripts]
+kaoqin-generate = "kaoqin.generator:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+kaoqin = ["resources/*.json"]

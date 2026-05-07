@@ -1,0 +1,13 @@
+.DS_Store
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+dist/
+build/
+*.egg-info/
+
+*_自动生成.xlsx
+*.xlsx
