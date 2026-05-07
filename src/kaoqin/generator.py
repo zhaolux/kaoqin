@@ -114,6 +114,13 @@ def parse_period_from_dingtalk(ws) -> tuple[int, int]:
     return start_year, start_month
 
 
+def get_target_period(reference_date: date | None = None) -> tuple[int, int]:
+    current_date = reference_date or date.today()
+    if current_date.month == 1:
+        return current_date.year - 1, 12
+    return current_date.year, current_date.month - 1
+
+
 def get_output_file(year: int, month: int) -> str:
     return f"邮政+电力（{month}月）_自动生成.xlsx"
 
@@ -463,7 +470,13 @@ def update_total(runtime_config: RuntimeConfig, ws, row_index, days_in_month: in
                 total_cell.value = f"=SUM({day_range})"
 
 
-def generate_attendance(input_file: str | None = None, dingtalk_sheet: str | None = None, output_file: str | None = None, config_dir: str | None = None):
+def generate_attendance(
+    input_file: str | None = None,
+    dingtalk_sheet: str | None = None,
+    output_file: str | None = None,
+    config_dir: str | None = None,
+    reference_date: date | None = None,
+):
     base_dir = Path(config_dir).resolve() if config_dir else Path.cwd()
     try:
         runtime_config = load_runtime_config(base_dir=base_dir)
@@ -475,9 +488,18 @@ def generate_attendance(input_file: str | None = None, dingtalk_sheet: str | Non
         ding_ws = ding_wb[resolved_sheet]
         logger.info("Use worksheet: %s", resolved_sheet)
 
-        year, month = parse_period_from_dingtalk(ding_ws)
+        source_year, source_month = parse_period_from_dingtalk(ding_ws)
+        year, month = get_target_period(reference_date=reference_date)
         days_in_month = calendar.monthrange(year, month)[1]
-        logger.info("Detected period: %s-%02d", year, month)
+        logger.info("Target period: %s-%02d", year, month)
+        if (source_year, source_month) != (year, month):
+            logger.warning(
+                "DingTalk source period %s-%02d does not match target period %s-%02d",
+                source_year,
+                source_month,
+                year,
+                month,
+            )
 
         if output_file is None:
             data_dir = get_data_dir(base_dir=base_dir)

@@ -1,3 +1,4 @@
+from datetime import date
 from pathlib import Path
 
 from openpyxl import Workbook, load_workbook
@@ -75,7 +76,7 @@ def test_generate_attendance_creates_workbook_with_formulas_and_alias(tmp_path):
     workbook_path = data_dir / "3月考勤电力，邮政.xlsx"
     create_dingtalk_workbook(workbook_path)
 
-    generate_attendance(config_dir=str(tmp_path))
+    generate_attendance(config_dir=str(tmp_path), reference_date=date(2026, 4, 15))
 
     output_path = data_dir / "邮政+电力（3月）_自动生成.xlsx"
     assert output_path.exists()
