@@ -1,5 +1,3 @@
-import json
-import shutil
 from pathlib import Path
 
 from openpyxl import Workbook, load_workbook
@@ -11,19 +9,6 @@ from kaoqin.generator import (
     resolve_dingtalk_sheet,
     resolve_input_file,
 )
-
-
-def copy_project_configs(target_dir: Path):
-    project_root = Path(__file__).resolve().parents[1]
-    for name in [
-        "attendance_config.json",
-        "attendance_layout.json",
-        "attendance_rules.json",
-        "holiday_calendars.json",
-    ]:
-        shutil.copy(project_root / name, target_dir / name)
-
-
 def create_dingtalk_workbook(path: Path, sheet_name: str = DEFAULT_DINGTALK_SHEET):
     workbook = Workbook()
     ws = workbook.active
@@ -85,7 +70,6 @@ def test_resolve_input_file_auto_detects_data_file(tmp_path):
 
 
 def test_generate_attendance_creates_workbook_with_formulas_and_alias(tmp_path):
-    copy_project_configs(tmp_path)
     data_dir = tmp_path / "data"
     data_dir.mkdir()
     workbook_path = data_dir / "3月考勤电力，邮政.xlsx"

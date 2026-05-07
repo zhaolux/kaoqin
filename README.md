@@ -60,7 +60,14 @@ kaoqin-generate --log-level DEBUG --log-file logs/custom.log
 
 ## 配置文件
 
-脚本读取配置时，优先使用当前目录或 `--config-dir` 指定目录下的 JSON；如果找不到，再回退到包内默认配置。
+脚本默认直接读取包内配置：
+
+- `src/kaoqin/resources/holiday_calendars.json`
+- `src/kaoqin/resources/attendance_layout.json`
+- `src/kaoqin/resources/attendance_config.json`
+- `src/kaoqin/resources/attendance_rules.json`
+
+如果你需要自定义配置，再通过 `--config-dir` 指定一个外部目录覆盖这些默认值。
 
 ## 数据目录
 
