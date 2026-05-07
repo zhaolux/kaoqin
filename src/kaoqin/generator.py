@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 
 FONT = Font(name="宋体", size=9)
 TITLE_FONT = Font(name="宋体", size=9, bold=True)
+FIRST_COLUMN_FONT = Font(name="黑体", size=9, bold=True)
 CENTER = Alignment(horizontal="center", vertical="center", wrap_text=True)
 LEFT = Alignment(horizontal="left", vertical="center", wrap_text=True)
 THIN = Side(style="thin", color="000000")
@@ -310,6 +311,8 @@ def build_sheet(runtime_config: RuntimeConfig, year: int, month: int):
     for col in range(1, last_col + 1):
         cell = ws.cell(3, col)
         cell.font = TITLE_FONT if col in {total_col, unit_col, category_col} else FONT
+        if col == 1:
+            cell.font = FIRST_COLUMN_FONT
         cell.alignment = CENTER
         if 3 <= col < total_col:
             fill = get_day_fill(runtime_config, year, month, col - 2)
@@ -324,7 +327,7 @@ def build_sheet(runtime_config: RuntimeConfig, year: int, month: int):
         ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=2)
         dept_cell = ws.cell(row, 1)
         dept_cell.value = department
-        dept_cell.font = FONT
+        dept_cell.font = FIRST_COLUMN_FONT
         dept_cell.alignment = LEFT
         dept_cell.border = make_border()
         for col in range(3, last_col + 1):
@@ -342,7 +345,7 @@ def build_sheet(runtime_config: RuntimeConfig, year: int, month: int):
             ws.merge_cells(start_row=start_row, start_column=1, end_row=end_row, end_column=1)
             name_cell = ws.cell(start_row, 1)
             name_cell.value = name
-            name_cell.font = FONT
+            name_cell.font = FIRST_COLUMN_FONT
             name_cell.alignment = CENTER
 
             row_index[name] = {}
